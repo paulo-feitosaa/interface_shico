@@ -140,13 +140,13 @@
         <section class="mb-8 p-6 bg-gray-50 rounded-lg shadow">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 items-center">
                 <label for="velocidade" class="font-medium text-gray-700">Velocidade</label>
-                <input type="number" id="velocidade" value="30" class="param-input">
+                <input type="number" id="velocidade" value="200" min="0" max="800" class="param-input">
 
                 <label for="aceleracao" class="font-medium text-gray-700">Aceleração</label>
-                <input type="number" id="aceleracao" value="1000" class="param-input">
+                <input type="number" id="aceleracao" value="1200" min="0" max="20000" class="param-input">
 
                 <label for="step" class="font-medium text-gray-700">Step:</label>
-                <input type="number" id="step" value="10" class="param-input">
+                <input type="number" id="step" value="10" min="0" max="50" class="param-input">
             </div>
             <div class="mt-6 text-center">
                 <button class="save-button">
@@ -155,10 +155,6 @@
             </div>
         </section>
 
-        <footer class="text-center mt-auto pb-8"> <button class="disconnect-button">
-                <span role="img" aria-label="cross-mark" class="mr-2">❌</span> Desconectar
-            </button>
-        </footer>
     </div>
 
     <div id="desenhar-modal" class="fixed inset-0 z-40 items-center justify-center hidden">
@@ -268,16 +264,19 @@
         controlButtons.forEach(button => {
             button.addEventListener('click', () => {
                 console.log(`${button.innerText.trim()} button clicked`);
-                if (button.innerText.trim() === 'Desconectar') {
-                    console.log('Tentativa de desconectar.');
-                    const statusElement = document.querySelector('.status-connected');
-                    if (statusElement) {
-                        statusElement.classList.remove('status-connected', 'text-green-600', 'bg-green-100', 'border-green-400');
-                        statusElement.classList.add('text-red-600', 'bg-red-100', 'border-red-400');
-                        statusElement.textContent = 'Desconectado.';
-                    }
-                }
                  // Adicionar lógica para outros botões de controle aqui
+                if (button.innerText.trim() === 'Salvar Parâmetros'){
+                    const velocidade = parseInt(document.getElementById("velocidade").value);
+                    const aceleracao = parseInt(document.getElementById("aceleracao").value);
+                    const step = parseInt(document.getElementById("step").value);
+                    fetch("/parametros", {
+                        method: "POST",
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ velocidade, aceleracao, step })
+                    }).then(res => res.json()).then(data => {
+                        if (data.status !== "Ok") alert(data.status);                       
+                    });
+                }
                 else {
                     fetch("/comando", {
                         method: "POST",
@@ -288,7 +287,7 @@
                         
                         atualizarPosicao();  // Atualiza após comando
                     });
-                }
+                }                       
             });
         });
 

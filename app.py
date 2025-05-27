@@ -14,10 +14,9 @@ class RoboSerial:
     def __init__(self, baudrate=115200):
         self.baudrate = baudrate
         self.serial = None
-        self.velocidade = 30      # Valor padrão
-        self.aceleracao = 1000    # Valor padrão
+        self.speed = 200      # Valor padrão
+        self.acceleration = 1200    # Valor padrão
         self.step = 10             # Valor padrão
-        self.posicao_atual = [0, 0, 0]  # X, Y, Z
         self.connected = False
         self.homed = False
         self.current_position = []
@@ -60,35 +59,21 @@ class RoboSerial:
         robo_serial.current_position = robo_serial.get_position()
         return response
 
-    def atualizar_posicao(self, cmd):
-        # Atualiza posição com base no comando enviado
-        if cmd == "X+":
-            self.posicao_atual[0] += self.step
-        elif cmd == "X-":
-            self.posicao_atual[0] -= self.step
-        elif cmd == "Y+":
-            self.posicao_atual[1] += self.step
-        elif cmd == "Y-":
-            self.posicao_atual[1] -= self.step
-        elif cmd == "Z+":
-            self.posicao_atual[2] += self.step
-        elif cmd == "Z-":
-            self.posicao_atual[2] -= self.step
-        elif cmd == "H":
-            self.posicao_atual = [0, 0, 0]
-
     def atualizar_parametros(self, velocidade, aceleracao, step):
-        self.velocidade = velocidade
-        self.aceleracao = aceleracao
         self.step = step
+        self.speed = velocidade
+        comando = f'G01 F{self.speed}\r\n'
+        response1 = robo_serial.send_gcodes([comando,])
+        self.acceleration = aceleracao
+        comando = f'M204 A{self.acceleration}\r\n'
+        response2 = robo_serial.send_gcodes([comando,])
+        if response1=='Ok' and response2=='Ok':
+            return 'Ok'
+        return f"Response speed: {response1}; Response aceleration: {response2}"
 
-    def desconectar(self):
-        if self.serial and self.serial.is_open:
-            self.serial.close()
 
 def inicializar_conexao():
-    global robo_serial, homed
-    mensagem = ""
+    global robo_serial
     print('Conectando...')
     ports = list(serial.tools.list_ports.comports())
     for port in ports:
@@ -97,8 +82,7 @@ def inicializar_conexao():
             time.sleep(0.1)
             robo_serial.serial.reset_input_buffer()
             robo_serial.serial.reset_output_buffer()
-            response = robo_serial.send_gcodes(['IsDelta\r\n'])
-            print(response)
+            response = robo_serial.send_gcodes(['IsDelta\r\n'])          
             if response == 'YesDelta':
                 print(f'Device found on {port.device}')
                 return True
@@ -108,34 +92,14 @@ def inicializar_conexao():
             continue
     return False
 
-
-@app.route("/loading")
-def loading():
-    return render_template("loading.html")
-
-@app.route("/verificar_conexao")
-def verificar_conexao():
-    if robo_serial.serial and robo_serial.serial.is_open:
-        return redirect(url_for("index"))
-    else:
-        return redirect(url_for("erro"))
-    
-
 @app.route("/")
 def index():
     if not robo_serial.serial.is_open:
         return "<h3>Erro: Não foi possível conectar ao robô na porta serial.</h3>", 500
     return render_template("index.html")
 
-
-@app.route("/erro")
-def erro():
-    return render_template("erro.html")    
-
 @app.route("/comando", methods=["POST"])
 def comando():
-    global homed
-
     cmd = request.json.get("cmd")
     try:
         if robo_serial.serial:
@@ -168,20 +132,10 @@ def comando():
         inicializar_conexao()
         return jsonify({"status": "erro"})
 
-@app.route("/desconectar", methods=["POST"])
-def desconectar():
-    global robo_serial, homed
-    if robo_serial:
-        robo_serial.desconectar()
-    session.clear()
-    robo_serial = None
-    homed = False
-    return redirect("/")
-
 @app.route("/parametros", methods=["POST"])
 def parametros():
     global robo_serial
-    if not session.get("conectado") or not robo_serial:
+    if not robo_serial.serial:
         return jsonify({"status": "erro", "msg": "Robô não conectado"})
 
     data = request.json
@@ -189,15 +143,17 @@ def parametros():
         velocidade = int(data.get("velocidade", 30))
         aceleracao = int(data.get("aceleracao", 1000))
         step = int(data.get("step", 1))
-
-        robo_serial.atualizar_parametros(velocidade, aceleracao, step)
-        return jsonify({"status": "ok", "msg": "Parâmetros atualizados"})
+        if velocidade > 0 and velocidade <= 800 and aceleracao > 0 and aceleracao <= 20000 and step > 0 and step <= 50:
+            response = robo_serial.atualizar_parametros(velocidade, aceleracao, step)
+        else:
+            response = "Existem valores fora dos limites"
+        return jsonify({"status": response})
     except Exception as e:
-        return jsonify({"status": "erro", "msg": str(e)})
+        return jsonify({"status": "Erro. Verifique a conexão!", "msg": str(e)})
 
 @app.route("/posicao", methods=["GET"])
 def posicao():
-    if not robo_serial:
+    if not robo_serial.serial:
         return jsonify({"status": "erro", "msg": "Robô não conectado"})
     
     return jsonify({
@@ -210,7 +166,7 @@ if __name__ == "__main__":
         # Conectar à serial só no processo final
         robo_serial = RoboSerial()
         if inicializar_conexao():
-            app.run(host="0.0.0.0", port=5000, debug=False)
+            app.run(host="0.0.0.0", port=5000, debug=True)
         else:
             print("Erro ao conectar com o robô.")
     else:

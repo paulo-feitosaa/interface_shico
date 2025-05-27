@@ -1,0 +1,195 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Controle do Robô XYZ</title>
+    <style>
+        body {
+        font-family: sans-serif;
+        text-align: center;
+        margin: 0;
+        padding: 20px;
+        box-sizing: border-box;
+        }
+
+        h1 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .grid-z {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 20px;
+            font-size: 18px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        input, select {
+            padding: 10px;
+            font-size: 16px;
+            margin: 5px 0;
+            width: 90%;
+            max-width: 1000px;
+            box-sizing: border-box;
+        }
+
+        form {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        #posicao-display {
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+
+        @media (min-width: 600px) {
+            .container {
+                flex-direction: row;
+                justify-content: center;
+                gap: 40px;
+            }
+
+            .grid {
+                max-width: none;
+                width: auto;
+            }
+
+            .grid-z {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 Controle do Robô XYZ</h1>
+
+    {% if not conectado %}
+        <form method="POST">
+            <input type="text" name="porta" placeholder="COM3 ou /dev/ttyUSB0" required>
+            <button type="submit">Conectar</button>
+        </form>
+    {% else %}
+        <p>{{ mensagem }}</p>
+
+        <div id="posicao-display">
+            <strong>Posição Atual:</strong>
+            X: <span id="x-val">0</span>,
+            Y: <span id="y-val">0</span>,
+            Z: <span id="z-val">0</span>
+        </div>
+        
+        <div class="container">
+            <div class="grid">
+                <div></div>
+                <button onclick="enviar('Y+')">⬆️ Y+</button>
+                <div></div>
+
+                <button onclick="enviar('X-')">⬅️ X-</button>
+                <button onclick="enviar('H')">🏠 Home</button>
+                <button onclick="enviar('X+')">➡️ X+</button>
+
+                <div></div>
+                <button onclick="enviar('Y-')">⬇️ Y-</button>
+                <div></div>
+            </div>
+            <div class="grid-z">
+                <button onclick="enviar('Z+')">⬆️ Z+</button>
+                <button onclick="enviar('Z-')">⬇️ Z-</button>
+            </div>
+        </div>
+        <!-- Adicionar após o </div> dos botões (linha após grid-z) -->
+        <div style="margin-top: 30px;">
+            <form id="parametros-form" onsubmit="salvarParametros(); return false;">
+                <label for="velocidade">Velocidade (0 a 800):</label>     
+                <input type="number" id="velocidade" name="velocidade" value="30" min="0" max="800" required>
+                <br>
+                <label for="aceleracao">Aceleração (0 a 20000):</label>
+                <input type="number" id="aceleracao" name="aceleracao" value="1000" min="0" max="20000" required>
+                <br>
+                <label for="step">Step:</label>
+                <select id="step" name="step">
+                    <option value="1">1</option>
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="50">50</option>
+                </select>
+                <br>
+                <button type="submit">Salvar Parâmetros</button>
+            </form>
+        </div>    
+        <br>
+        <form method="POST" action="/desconectar">
+            <button type="submit" style="background:red; color:white; font-size:18px; padding:10px 20px; width:90%;">❌ Desconectar</button>
+        </form>
+    {% endif %}
+
+    <script>
+        function enviar(cmd) {
+        fetch("/comando", {
+            method: "POST",
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({cmd: cmd})
+        }).then(res => res.json()).then(data => {
+            if (data.status !== "ok") alert(data.msg);
+            atualizarPosicao();  // Atualiza após comando
+        });
+        }
+
+        function salvarParametros() {
+            const velocidade = parseInt(document.getElementById("velocidade").value);
+            const aceleracao = parseInt(document.getElementById("aceleracao").value);
+            const step = parseInt(document.getElementById("step").value);
+
+            fetch("/parametros", {
+                method: "POST",
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ velocidade, aceleracao, step })
+            }).then(res => res.json()).then(data => {
+                alert(data.msg);
+            });
+        }
+
+        function atualizarPosicao() {
+            fetch("/posicao")
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "ok") {
+                        const [x, y, z] = data.posicao;
+                        document.getElementById("x-val").textContent = x;
+                        document.getElementById("y-val").textContent = y;
+                        document.getElementById("z-val").textContent = z;
+                    }
+                });
+        }
+
+        // Atualiza posição periodicamente (a cada 2s)
+        // setInterval(atualizarPosicao, 2000);
+    </script>
+</body>
+</html>

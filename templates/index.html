@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle do Robô DELTA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Prevent scrollbars from appearing unnecessarily during transitions */
+            overflow-x: hidden;
+        }
+        /* Custom styles for better visual representation from the image */
+        .control-button {
+            @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-lg shadow-md transition-colors duration-150 flex items-center justify-center border border-gray-400;
+        }
+        .param-input {
+            @apply border border-gray-300 rounded-md px-3 py-2 w-24 text-center shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+        }
+        .status-connected {
+            @apply text-green-600 bg-green-100 border border-green-400 rounded-md px-4 py-2 text-sm font-medium;
+        }
+        .disconnect-button {
+            @apply bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-colors duration-150 flex items-center justify-center;
+        }
+        .save-button {
+             @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md transition-colors duration-150 w-full border border-gray-400;
+        }
+
+        /* Sidebar styles */
+        #sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        #sidebar.open {
+            transform: translateX(0);
+        }
+        #sidebar:not(.open) {
+            transform: translateX(-100%);
+        }
+
+        /* Modal styles */
+        #desenhar-modal {
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        #desenhar-modal:not(.flex) {
+            opacity: 0;
+            visibility: hidden;
+        }
+         #desenhar-modal.flex {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content-box {
+            max-height: 90vh; /* Ensure modal content is scrollable if too tall */
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-white text-gray-900 flex flex-col items-center min-h-screen p-4 sm:p-6 md:p-8">
+
+    <button id="menu-toggle" class="fixed top-4 left-4 z-30 p-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+        </svg>
+    </button>
+
+    <aside id="sidebar" class="fixed top-0 left-0 z-20 w-64 h-full bg-gray-800 text-white p-5">
+        <h2 class="text-xl font-semibold mb-4">Menu</h2>
+        <nav>
+            <ul>
+                <li>
+                    <a href="#" id="open-desenhar-modal" class="block py-2 px-4 rounded hover:bg-gray-700">Desenhar</a>
+                </li>
+                </ul>
+        </nav>
+    </aside>
+
+    <div class="w-full max-w-2xl mx-auto pt-16"> <header class="text-center mb-6">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800">
+                <span role="img" aria-label="robot-icon" class="mr-2">🤖</span>Controle do Robô DELTA
+            </h1>
+            <p class="status-connected mt-3">
+                Conectado com sucesso !
+            </p>
+        </header>
+
+        <section class="mb-8 p-6 bg-gray-50 rounded-lg shadow">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Posição Atual:</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                <div class="flex items-center justify-center sm:justify-start">
+                    <span class="font-medium mr-2">X:</span>
+                    <input type="text" value="0" readonly class="param-input bg-gray-100 w-20" id="x-val">
+                </div>
+                <div class="flex items-center justify-center sm:justify-start">
+                    <span class="font-medium mr-2">Y:</span>
+                    <input type="text" value="0" readonly class="param-input bg-gray-100 w-20" id="y-val">
+                </div>
+                <div class="flex items-center justify-center sm:justify-start">
+                    <span class="font-medium mr-2">Z:</span>
+                    <input type="text" value="0" readonly class="param-input bg-gray-100 w-20" id="z-val">
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-8">
+            <div class="grid grid-cols-3 gap-4 sm:gap-6 max-w-md mx-auto items-center">
+                <div></div> <button class="control-button bg-blue-100 hover:bg-blue-300">
+                    <span role="img" aria-label="arrow-up" class="mr-1">⬆️</span> Y+
+                </button>
+                <div class="flex flex-col gap-4 sm:gap-6 ml-auto sm:ml-8">
+                     <button class="control-button bg-blue-100 hover:bg-blue-300">
+                        <span role="img" aria-label="arrow-up" class="mr-1">⬆️</span> Z+
+                    </button>
+                </div>
+
+                <button class="control-button bg-blue-100 hover:bg-blue-300">
+                    <span role="img" aria-label="arrow-left" class="mr-1">⬅️</span> X-
+                </button>
+                <button class="control-button bg-blue-100 hover:bg-blue-300 text-black">
+                    <span role="img" aria-label="home-icon" class="mr-1">🏠</span> Home
+                </button>
+                 <button class="control-button bg-blue-100 hover:bg-blue-300">
+                    X+ <span role="img" aria-label="arrow-right" class="ml-1">➡️</span>
+                </button>
+
+
+                <div></div> <button class="control-button bg-blue-100 hover:bg-blue-300">
+                    <span role="img" aria-label="arrow-down" class="mr-1">⬇️</span> Y-
+                </button>
+                 <div class="flex flex-col gap-4 sm:gap-6 ml-auto sm:ml-8">
+                    <button class="control-button bg-blue-100 hover:bg-blue-300">
+                        <span role="img" aria-label="arrow-down" class="mr-1">⬇️</span> Z-
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-8 p-6 bg-gray-50 rounded-lg shadow">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 items-center">
+                <label for="velocidade" class="font-medium text-gray-700">Velocidade</label>
+                <input type="number" id="velocidade" value="30" class="param-input">
+
+                <label for="aceleracao" class="font-medium text-gray-700">Aceleração</label>
+                <input type="number" id="aceleracao" value="1000" class="param-input">
+
+                <label for="step" class="font-medium text-gray-700">Step:</label>
+                <input type="number" id="step" value="10" class="param-input">
+            </div>
+            <div class="mt-6 text-center">
+                <button class="save-button">
+                    Salvar Parâmetros
+                </button>
+            </div>
+        </section>
+
+        <footer class="text-center mt-auto pb-8"> <button class="disconnect-button">
+                <span role="img" aria-label="cross-mark" class="mr-2">❌</span> Desconectar
+            </button>
+        </footer>
+    </div>
+
+    <div id="desenhar-modal" class="fixed inset-0 z-40 items-center justify-center hidden">
+        <div id="modal-overlay" class="absolute inset-0 bg-black/60"></div>
+        <div class="modal-content-box relative bg-white p-6 sm:p-8 rounded-lg shadow-xl w-11/12 max-w-lg mx-auto my-8">
+            <button id="close-desenhar-modal" class="absolute top-3 right-3 text-gray-500 hover:text-gray-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <h2 class="text-2xl font-semibold mb-6 text-center text-gray-800">Desenhar</h2>
+
+            <div class="mb-4">
+                <label for="desenho-select" class="block text-sm font-medium text-gray-700 mb-1">Selecione um desenho:</label>
+                <select id="desenho-select" name="desenho-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm">
+                    <option value="">-- Escolha --</option>
+                    <option value="quadrado" data-img-src="https://placehold.co/400x300/aabbcc/ffffff?text=Quadrado">Quadrado</option>
+                    <option value="circulo" data-img-src="https://placehold.co/400x300/ffccdd/000000?text=Círculo">Círculo</option>
+                    <option value="triangulo" data-img-src="https://placehold.co/400x300/cceeff/333333?text=Triângulo">Triângulo</option>
+                    </select>
+            </div>
+
+            <div id="desenho-preview-container" class="mb-6 w-full h-64 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center bg-gray-50">
+                <img id="desenho-preview-img" src="https://placehold.co/400x300/e0e0e0/999999?text=Selecione+um+desenho" alt="Pré-visualização do Desenho" class="max-w-full max-h-full object-contain">
+            </div>
+
+            <div class="mb-6">
+                <label for="altura-desenho" class="block text-sm font-medium text-gray-700">Altura do desenho (mm):</label>
+                <input type="number" id="altura-desenho" name="altura-desenho" value="100" class="mt-1 param-input w-full focus:ring-indigo-500 focus:border-indigo-500 block shadow-sm sm:text-sm border-gray-300 rounded-md">
+            </div>
+
+            <button id="iniciar-desenho-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors duration-150">
+                Iniciar Desenho
+            </button>
+        </div>
+    </div>
+
+
+    <script>
+        // DOM Elements
+        const menuToggle = document.getElementById('menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const openDesenharModalBtn = document.getElementById('open-desenhar-modal');
+        const desenharModal = document.getElementById('desenhar-modal');
+        const closeDesenharModalBtn = document.getElementById('close-desenhar-modal');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const desenhoSelect = document.getElementById('desenho-select');
+        const desenhoPreviewImg = document.getElementById('desenho-preview-img');
+        const alturaDesenhoInput = document.getElementById('altura-desenho');
+        const iniciarDesenhoBtn = document.getElementById('iniciar-desenho-btn');
+
+        // Toggle sidebar
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        // Open Desenhar Modal
+        openDesenharModalBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            desenharModal.classList.add('flex');
+            desenharModal.classList.remove('hidden');
+            sidebar.classList.remove('open'); // Close sidebar when modal opens
+        });
+
+        // Close Desenhar Modal
+        function closeModal() {
+            desenharModal.classList.add('hidden');
+            desenharModal.classList.remove('flex');
+        }
+        closeDesenharModalBtn.addEventListener('click', closeModal);
+        modalOverlay.addEventListener('click', closeModal); // Close modal on overlay click
+
+        // Update drawing preview
+        desenhoSelect.addEventListener('change', () => {
+            const selectedOption = desenhoSelect.options[desenhoSelect.selectedIndex];
+            const imgSrc = selectedOption.dataset.imgSrc;
+            if (imgSrc) {
+                desenhoPreviewImg.src = imgSrc;
+                desenhoPreviewImg.alt = `Pré-visualização de ${selectedOption.textContent}`;
+            } else {
+                desenhoPreviewImg.src = 'https://placehold.co/400x300/e0e0e0/999999?text=Selecione+um+desenho';
+                desenhoPreviewImg.alt = 'Pré-visualização do Desenho';
+            }
+        });
+
+        // Iniciar Desenho Button
+        iniciarDesenhoBtn.addEventListener('click', () => {
+            const selectedDesenho = desenhoSelect.value;
+            const altura = alturaDesenhoInput.value;
+            if (!selectedDesenho) {
+                // Idealmente, use um feedback não obstrutivo em vez de alert
+                console.warn('Por favor, selecione um desenho.');
+                // Exemplo: Adicionar uma borda vermelha ao select
+                desenhoSelect.classList.add('border-red-500');
+                setTimeout(() => desenhoSelect.classList.remove('border-red-500'), 2000);
+                return;
+            }
+            console.log(`Iniciando desenho: ${selectedDesenho}, Altura: ${altura}mm`);
+            // Aqui você adicionaria a lógica para enviar o comando de desenho ao robô
+            alert(`Desenho "${selectedDesenho}" com altura ${altura}mm iniciado! (Simulação)`); // Substituir por lógica real
+            closeModal();
+        });
+
+
+        // Original Robot Control Buttons Logic (Example)
+        const controlButtons = document.querySelectorAll('.control-button, .save-button, .disconnect-button');
+        controlButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                console.log(`${button.innerText.trim()} button clicked`);
+                if (button.innerText.trim() === 'Desconectar') {
+                    console.log('Tentativa de desconectar.');
+                    const statusElement = document.querySelector('.status-connected');
+                    if (statusElement) {
+                        statusElement.classList.remove('status-connected', 'text-green-600', 'bg-green-100', 'border-green-400');
+                        statusElement.classList.add('text-red-600', 'bg-red-100', 'border-red-400');
+                        statusElement.textContent = 'Desconectado.';
+                    }
+                }
+                 // Adicionar lógica para outros botões de controle aqui
+                else {
+                    fetch("/comando", {
+                        method: "POST",
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({cmd: button.innerText.trim()})
+                    }).then(res => res.json()).then(data => {
+                        if (data.status !== "Ok") alert(data.status);
+                        
+                        atualizarPosicao();  // Atualiza após comando
+                    });
+                }
+            });
+        });
+
+        function atualizarPosicao() {
+            fetch("/posicao")
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "ok") {
+                        const [x, y, z] = data.posicao;
+                        document.getElementById("x-val").value = x;
+                        document.getElementById("y-val").value = y;
+                        document.getElementById("z-val").value = z;
+                    }
+                });
+        }
+        console.log("Página de controle do robô carregada com menu e modal.");
+    </script>
+</body>
+</html>

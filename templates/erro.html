@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Erro na Conexão</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            padding-top: 100px;
+            color: red;
+        }
+        a {
+            display: inline-block;
+            margin-top: 20px;
+            font-weight: bold;
+            color: blue;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <h2>🚫 Erro ao conectar com o robô</h2>
+    <p>Verifique a porta serial e o cabo USB.</p>
+    <a href="{{ url_for('loading') }}">🔁 Tentar novamente</a>
+</body>
+</html>

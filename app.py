@@ -161,6 +161,21 @@ def posicao():
         "posicao": robo_serial.current_position
     })
 
+@app.route("/desenhar", methods=["POST"])
+def desenhar():
+    if not robo_serial.serial:
+        return jsonify({"status": "erro", "msg": "Robô não conectado"})
+    
+    cmd = request.json.get("cmd")
+    drawing = request.json.get("desenho")
+    height = request.json.get("altura")
+    print(f"{cmd}: {drawing} - {height}")
+    return jsonify({
+        "status": "ok",
+        "posicao": robo_serial.current_position
+    })
+
+
 if __name__ == "__main__":
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         # Conectar à serial só no processo final

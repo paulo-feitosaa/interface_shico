@@ -178,13 +178,8 @@
             <h2 class="text-2xl font-semibold mb-6 text-center text-gray-800">Desenhar</h2>
 
             <div class="mb-4">
-                <label for="desenho-select" class="block text-sm font-medium text-gray-700 mb-1">Selecione um desenho:</label>
-                <select id="desenho-select" name="desenho-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm">
-                    <option value="">-- Escolha --</option>
-                    <option value="quadrado" data-img-src="/static/images/LOGO_BEZ.png">Logo BeZ</option>
-                    <option value="circulo" data-img-src="https://placehold.co/400x300/ffccdd/000000?text=Círculo">Círculo</option>
-                    <option value="triangulo" data-img-src="https://placehold.co/400x300/cceeff/333333?text=Triângulo">Triângulo</option>
-                    </select>
+                <label for="desenho-local-input" class="block text-sm font-medium text-gray-700 mb-1">Selecione uma imagem do computador:</label>
+                <input type="file" id="desenho-local-input" name="desenho-local-input" accept="image/*" class="file-input-button mt-1">
             </div>
 
             <div id="desenho-preview-container" class="mb-6 w-full h-64 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center bg-gray-50">
@@ -220,7 +215,7 @@
         const desenharModal = document.getElementById('desenhar-modal');
         const closeDesenharModalBtn = document.getElementById('close-desenhar-modal');
         const modalOverlay = document.getElementById('modal-overlay');
-        const desenhoSelect = document.getElementById('desenho-select');
+        const desenhoLocalInput = document.getElementById('desenho-local-input'); // New file input
         const desenhoPreviewImg = document.getElementById('desenho-preview-img');
         const alturaDesenhoInput = document.getElementById('altura-desenho');
         const iniciarDesenhoBtn = document.getElementById('iniciar-desenho-btn');
@@ -246,49 +241,56 @@
         closeDesenharModalBtn.addEventListener('click', closeModal);
         modalOverlay.addEventListener('click', closeModal); // Close modal on overlay click
 
-        // Update drawing preview
-        desenhoSelect.addEventListener('change', () => {
-            const selectedOption = desenhoSelect.options[desenhoSelect.selectedIndex];
-            const imgSrc = selectedOption.dataset.imgSrc;
-            if (imgSrc) {
-                console.log(imgSrc);
-                desenhoPreviewImg.src = imgSrc;
-                desenhoPreviewImg.alt = `Pré-visualização de ${selectedOption.textContent}`;
+        // Handle local file selection for drawing preview
+        desenhoLocalInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                localFileForDrawing = file; // Store the file object
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    desenhoPreviewImg.src = e.target.result;
+                    console.log(`Imagem: ${desenhoPreviewImg.src}`);  
+                    desenhoPreviewImg.alt = `Pré-visualização de ${file.name}`;
+                }
+                reader.readAsDataURL(file);
             } else {
-                desenhoPreviewImg.src = 'https://placehold.co/400x300/e0e0e0/999999?text=Selecione+um+desenho';
+                localFileForDrawing = null;
+                desenhoPreviewImg.src = 'https://placehold.co/400x300/e0e0e0/999999?text=Nenhuma+imagem+selecionada';
                 desenhoPreviewImg.alt = 'Pré-visualização do Desenho';
             }
         });
 
         // Iniciar Desenho Button
         iniciarDesenhoBtn.addEventListener('click', () => {
-            const selectedDesenho = desenhoSelect.value;
             const altura = alturaDesenhoInput.value;
-            if (!selectedDesenho) {
-                // Idealmente, use um feedback não obstrutivo em vez de alert
-                console.warn('Por favor, selecione um desenho.');
-                // Exemplo: Adicionar uma borda vermelha ao select
-                desenhoSelect.classList.add('border-red-500');
-                setTimeout(() => desenhoSelect.classList.remove('border-red-500'), 2000);
+
+            if (!localFileForDrawing) {
+                console.warn('Por favor, selecione uma imagem do seu computador.');
+                // Example: Add a visual cue to the file input
+                desenhoLocalInput.classList.add('ring-2', 'ring-red-500');
+                setTimeout(() => desenhoLocalInput.classList.remove('ring-2', 'ring-red-500'), 2000);
                 return;
             }
-            console.log(`Iniciando desenho: ${selectedDesenho}, Altura: ${altura}mm`);
-            // Aqui você adicionaria a lógica para enviar o comando de desenho ao robô
-            //alert(`Desenho "${selectedDesenho}" com altura ${altura}mm iniciado! (Simulação)`); // Substituir por lógica real
-           // closeModal();
-           fetch("/desenhar", {
+
+            console.log(`Iniciando desenho com arquivo local: ${localFileForDrawing.name}, Altura: ${altura}mm`);
+            fetch("/desenhar", {
                         method: "POST",
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({ cmd: iniciarDesenhoBtn.innerText.trim(),
-                                               desenho: selectedDesenho,
+                                               desenho: localFileForDrawing.name,
                                                altura: altura
                         })
                 }).then(res => res.json()).then(data => {
                         if (data.status !== "Ok") alert(data.status);                       
             });
+            // Here you would add the logic to process 'localFileForDrawing' (e.g., send it to a server,
+            // or if the robot processes image data directly, you might convert it or extract paths)
+            // For now, it's just a simulation.
+            // alert(`Desenho com arquivo "${localFileForDrawing.name}" e altura ${altura}mm iniciado! (Simulação)`);
+            // closeModal();
         });
 
-
+        
         // Original Robot Control Buttons Logic (Example)
         const controlButtons = document.querySelectorAll('.control-button, .save-button, .disconnect-button');
         controlButtons.forEach(button => {

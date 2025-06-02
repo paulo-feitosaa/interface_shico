@@ -33,19 +33,23 @@ class RoboSerial:
                 print("Timeout: Não foi possível escrever na serial no tempo definido.")
                 return None
             
-    def get_position(self):
+    def get_position(self, timeout=2):
         self.serial.reset_input_buffer()
         self.serial.reset_output_buffer()
         gcode = b'Position\r\n'
         self.serial.write(gcode)
-        while True:
+
+        start_time = time.time()
+        while time.time() - start_time < timeout:
             if self.serial.in_waiting > 0:
                 line = self.serial.readline().decode('utf-8').rstrip()
                 try:
                     posicaoAtual = [float(num) for num in line.split(',')]
+                    return posicaoAtual
                 except ValueError:
                     return None
-                return posicaoAtual
+        print("Timeout ao ler posição")
+        return None
             
     def set_position(self): 
         comando = f'G01 X{self.current_position[0]} Y{self.current_position[1]} Z{self.current_position[2]}'
@@ -54,9 +58,13 @@ class RoboSerial:
         return response
     
     def move_step(self, axis, direction):
-        robo_serial.current_position[axis] += direction * robo_serial.step
-        response = robo_serial.set_position()                   
-        robo_serial.current_position = robo_serial.get_position()
+        self.current_position[axis] += direction * self.step
+        response = self.set_position()
+        nova_posicao = self.get_position()
+        if nova_posicao:
+            self.current_position = nova_posicao
+        else:
+            print("Erro: posição não retornada.")
         return response
 
     def atualizar_parametros(self, velocidade, aceleracao, step):

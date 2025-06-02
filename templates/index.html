@@ -295,34 +295,41 @@
         const controlButtons = document.querySelectorAll('.control-button, .save-button, .disconnect-button');
         controlButtons.forEach(button => {
             button.addEventListener('click', () => {
-                console.log(`${button.innerText.trim()} button clicked`);
-                 // Adicionar lógica para outros botões de controle aqui
-                if (button.innerText.trim() === 'Salvar Parâmetros'){
-                    const velocidade = parseInt(document.getElementById("velocidade").value);
-                    const aceleracao = parseInt(document.getElementById("aceleracao").value);
-                    const step = parseInt(document.getElementById("step").value);
+                const originalText = button.innerText.trim();
+
+                // Desabilita todos os botões
+                controlButtons.forEach(btn => btn.disabled = true);
+
+                const velocidade = parseInt(document.getElementById("velocidade").value);
+                const aceleracao = parseInt(document.getElementById("aceleracao").value);
+                const step = parseInt(document.getElementById("step").value);
+
+                const finalizar = () => {
+                    atualizarPosicao(); // Atualiza posição sempre
+                    controlButtons.forEach(btn => btn.disabled = false); // Reabilita
+                };
+
+                if (originalText === 'Salvar Parâmetros') {
                     fetch("/parametros", {
                         method: "POST",
-                        headers: {'Content-Type': 'application/json'},
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ velocidade, aceleracao, step })
                     }).then(res => res.json()).then(data => {
-                        if (data.status !== "Ok") alert(data.status);                       
-                    });
+                        if (data.status !== "Ok") alert(data.status);
+                    }).finally(finalizar);
+                } else if (originalText === 'Carregar Z atual') {
+                    document.getElementById("altura-desenho").value = document.getElementById("z-val").value;
+                    finalizar();
+                } else {
+                    console.log(originalText);  
+                    fetch("/comando", {
+                        method: "POST",
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cmd: originalText })
+                    }).then(res => res.json()).then(data => {
+                        if (data.status !== "Ok") alert(data.status);
+                    }).finally(finalizar);
                 }
-                else 
-                    if(button.innerText.trim() === 'Carregar Z atual'){
-                        alturaDesenhoInput.value = document.getElementById("z-val").value
-                    } else {
-                        fetch("/comando", {
-                            method: "POST",
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({cmd: button.innerText.trim()})
-                        }).then(res => res.json()).then(data => {
-                            if (data.status !== "Ok") alert(data.status);
-                            
-                            atualizarPosicao();  // Atualiza após comando
-                        });
-                    }                   
             });
         });
 

@@ -275,6 +275,7 @@
             
             const formData = new FormData();
             formData.append("gcode", localFileForDrawing);
+            formData.append("altura", altura);
 
             console.log(`Iniciando desenho com arquivo local: ${localFileForDrawing.name}, Altura: ${altura}mm`);
             fetch("/desenhar", {

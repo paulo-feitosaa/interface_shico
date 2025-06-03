@@ -13,6 +13,10 @@ robo_serial = None
 homed = False
 printer_3d = None
 
+ROBOT_ONLY_COMMANDS = {'G28'}
+SHARED_COMMANDS = {'G90', 'G91'}
+MOVEMENT_COMMANDS = {'G0', 'G1'}
+
 class RoboSerial:
     def __init__(self, baudrate=115200):
         self.baudrate = baudrate
@@ -110,6 +114,69 @@ def inicializar_conexao():
             continue
     return False
 
+def send_command(line, origem):
+    # ser.write((line + '\n').encode('utf-8'))
+    print(f">[{origem}] {line}")
+    # print("\n")
+    # wait_for_ok(ser, origem)
+
+def route_command(line, z_offset):
+    print(f"\n> Linha original: {line}")
+    clean_line = line.split(';', 1)[0].strip()  # Remove comentário
+    tokens = clean_line.split()
+    if not tokens:
+        return
+
+    cmd = tokens[0]
+
+    if cmd in SHARED_COMMANDS:
+        send_command(clean_line, "Robô")
+        send_command(clean_line, "Impressora")
+
+    elif cmd in MOVEMENT_COMMANDS:
+        has_e = any(token.startswith('E') for token in tokens[1:])
+        robot_params = []
+        printer_params = []
+
+        for token in tokens[1:]:
+            if token.startswith(('X', 'Y')):
+                robot_params.append(token)
+
+            elif token.startswith('Z'):
+                try:
+                    z_value = float(token[1:])
+                    z_robot = z_value + z_offset
+                    robot_params.append(f"Z{z_robot:.3f}")
+                except ValueError:
+                    pass
+
+            elif token.startswith('F'):
+                try:
+                    f_value = float(token[1:])
+                    f_robot = f"F{f_value / 60:.2f}"  # mm/min → mm/s
+                    robot_params.append(f_robot)
+                    if has_e:
+                        printer_params.append(token)  # Envia F original para impressora se tiver E
+                except ValueError:
+                    pass
+
+            elif token.startswith('E'):
+                printer_params.append(token)
+
+        if has_e:
+            if robot_params:
+                send_command(f"{cmd} {' '.join(robot_params)}", "Robô")
+            if printer_params:
+                send_command(f"{cmd} {' '.join(printer_params)}", "Impressora")
+        else:
+            send_command(f"{cmd} {' '.join(robot_params)}", "Robô")
+
+    elif cmd in ROBOT_ONLY_COMMANDS:
+        send_command(clean_line, "Robô")
+
+    else:
+        send_command(clean_line, "Impressora")
+
 @app.route("/")
 def index():
     if not robo_serial.serial.is_open:
@@ -195,14 +262,31 @@ def desenhar():
     print("📄 Conteúdo do G-code recebido:")
     # print(conteudo)
 
-    # Aqui você pode armazenar, analisar ou enviar linha por linha ao robô
+    height = request.form.get("altura")
+    print(f'Altura: {height}')
+    # response = printer_3d.send_gcode(conteudo)
 
-    # return jsonify({"status": "Ok", "linhas": len(conteudo.splitlines())})
+    try:
+        print("Conectado. Iniciando envio do G-code...\n")
+        lines = conteudo.splitlines()
+        for line in lines:
+            clean_line = line.strip()
+            if clean_line and not clean_line.startswith(';'):
+                route_command(clean_line, float(height))
 
-    # # cmd = request.json.get("cmd")
-    # drawing = request.json.get("desenho")
-    # # height = request.json.get("altura")
-    response = printer_3d.send_gcode(conteudo)
+        print("\n✅ Envio do G-code concluído com sucesso!")
+        response = 'Ok'
+
+    except serial.SerialException as e:
+        print(f"Erro na comunicação serial: {e}")
+        response = "Erro na comunicação serial"
+    except FileNotFoundError:
+        print("Arquivo G-code não encontrado.")
+        response = "Arquivo G-code não encontrado."
+    # except Exception as e:
+    #     print(f"Erro inesperado: {e}")
+    #     response = "Erro inesperado: "
+
     return jsonify({
         "status": response,
     })

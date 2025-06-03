@@ -179,7 +179,7 @@
 
             <div class="mb-4">
                 <label for="desenho-local-input" class="block text-sm font-medium text-gray-700 mb-1">Selecione uma imagem do computador:</label>
-                <input type="file" id="desenho-local-input" name="desenho-local-input" accept="image/*" class="file-input-button mt-1">
+                <input type="file" id="desenho-local-input" name="desenho-local-input" accept=".gcode" class="file-input-button mt-1">
             </div>
 
             <div id="desenho-preview-container" class="mb-6 w-full h-64 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center bg-gray-50">
@@ -263,7 +263,8 @@
         // Iniciar Desenho Button
         iniciarDesenhoBtn.addEventListener('click', () => {
             const altura = alturaDesenhoInput.value;
-
+            const fileInput = document.getElementById("desenho-local-input");
+            const file = fileInput.files[0];
             if (!localFileForDrawing) {
                 console.warn('Por favor, selecione uma imagem do seu computador.');
                 // Example: Add a visual cue to the file input
@@ -271,17 +272,18 @@
                 setTimeout(() => desenhoLocalInput.classList.remove('ring-2', 'ring-red-500'), 2000);
                 return;
             }
+            
+            const formData = new FormData();
+            formData.append("gcode", localFileForDrawing);
 
             console.log(`Iniciando desenho com arquivo local: ${localFileForDrawing.name}, Altura: ${altura}mm`);
             fetch("/desenhar", {
                         method: "POST",
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ cmd: iniciarDesenhoBtn.innerText.trim(),
-                                               desenho: localFileForDrawing.name,
-                                               altura: altura
-                        })
+                        //headers: {'Content-Type': 'application/json'},
+                        body: formData
                 }).then(res => res.json()).then(data => {
-                        if (data.status !== "Ok") alert(data.status);                       
+                        if (data.status !== "Ok") alert(data.msg);
+                        closeModal();                       
             });
             // Here you would add the logic to process 'localFileForDrawing' (e.g., send it to a server,
             // or if the robot processes image data directly, you might convert it or extract paths)

@@ -4,11 +4,14 @@ import serial
 import serial.tools.list_ports
 import time
 import os
+from modulos.printer3d import Printer3d
+from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = "chave-secreta"
 
 robo_serial = None
 homed = False
+printer_3d = None
 
 class RoboSerial:
     def __init__(self, baudrate=115200):
@@ -84,7 +87,12 @@ class RoboSerial:
 
 def inicializar_conexao():
     global robo_serial
+    global printer_3d
     print('Conectando...')
+    printer_3d.serial = serial.Serial('COM4', printer_3d.baudrate, timeout=1)
+    time.sleep(0.1)
+    printer_3d.serial.reset_input_buffer()
+    printer_3d.serial.reset_output_buffer()
     ports = list(serial.tools.list_ports.comports())
     for port in ports:
         try:
@@ -173,16 +181,30 @@ def posicao():
 
 @app.route("/desenhar", methods=["POST"])
 def desenhar():
-    if not robo_serial.serial:
-        return jsonify({"status": "erro", "msg": "Robô não conectado"})
+    if not robo_serial.serial or not printer_3d.serial:
+        return jsonify({"status": "erro", "msg": "Robô ou impressora não conectado"})
     
-    cmd = request.json.get("cmd")
-    drawing = request.json.get("desenho")
-    height = request.json.get("altura")
-    print(f"{cmd}: {drawing} - {height}")
+    if "gcode" not in request.files:
+        return jsonify({"status": "erro", "msg": "Arquivo G-code não enviado"})
+
+    gcode_file = request.files["gcode"]
+    filename = secure_filename(gcode_file.filename)
+
+    # Exibe o conteúdo no terminal (como solicitado)
+    conteudo = gcode_file.read().decode("utf-8")
+    print("📄 Conteúdo do G-code recebido:")
+    # print(conteudo)
+
+    # Aqui você pode armazenar, analisar ou enviar linha por linha ao robô
+
+    # return jsonify({"status": "Ok", "linhas": len(conteudo.splitlines())})
+
+    # # cmd = request.json.get("cmd")
+    # drawing = request.json.get("desenho")
+    # # height = request.json.get("altura")
+    response = printer_3d.send_gcode(conteudo)
     return jsonify({
-        "status": "ok",
-        "posicao": robo_serial.current_position
+        "status": response,
     })
 
 
@@ -190,6 +212,7 @@ if __name__ == "__main__":
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         # Conectar à serial só no processo final
         robo_serial = RoboSerial()
+        printer_3d = Printer3d()
         if inicializar_conexao():
             app.run(host="0.0.0.0", port=5000, debug=True)
         else:

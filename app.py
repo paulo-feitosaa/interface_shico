@@ -93,26 +93,21 @@ def inicializar_conexao():
     global robo_serial
     global printer_3d
     print('Conectando...')
-    printer_3d.serial = serial.Serial('COM4', printer_3d.baudrate, timeout=1)
-    time.sleep(0.1)
-    printer_3d.serial.reset_input_buffer()
-    printer_3d.serial.reset_output_buffer()
-    ports = list(serial.tools.list_ports.comports())
-    for port in ports:
-        try:
-            robo_serial.serial = serial.Serial(port.device, 115200, timeout=1, write_timeout=1)
-            time.sleep(0.1)
-            robo_serial.serial.reset_input_buffer()
-            robo_serial.serial.reset_output_buffer()
-            response = robo_serial.send_gcodes(['IsDelta\r\n'])          
-            if response == 'YesDelta':
-                print(f'Device found on {port.device}')
-                return True
-            robo_serial.serial.close()
-            robo_serial.serial = None
-        except (serial.SerialException, OSError):
-            continue
-    return False
+    try:
+        printer_3d.serial = serial.Serial('COM4', printer_3d.baudrate, timeout=1)
+        time.sleep(0.1)
+        printer_3d.serial.reset_input_buffer()
+        printer_3d.serial.reset_output_buffer()
+
+        robo_serial.serial = serial.Serial('COM9', 115200, timeout=1, write_timeout=1)
+        time.sleep(0.1)
+        robo_serial.serial.reset_input_buffer()
+        robo_serial.serial.reset_output_buffer()
+        print("Robô conectado na COM9")
+        return True
+    except (serial.SerialException, OSError):
+        return False
+    
 
 def send_command(line, origem):
     # ser.write((line + '\n').encode('utf-8'))
@@ -121,6 +116,8 @@ def send_command(line, origem):
     # wait_for_ok(ser, origem)
 
 def route_command(line, z_offset):
+    global robo_serial
+    global printer_3d
     print(f"\n> Linha original: {line}")
     clean_line = line.split(';', 1)[0].strip()  # Remove comentário
     tokens = clean_line.split()
@@ -130,8 +127,12 @@ def route_command(line, z_offset):
     cmd = tokens[0]
 
     if cmd in SHARED_COMMANDS:
-        send_command(clean_line, "Robô")
-        send_command(clean_line, "Impressora")
+        # send_command(clean_line, "Impressora")
+        printer_3d.send_gcode(clean_line)
+        # send_command(clean_line, "Robô")
+        print(f">[Robo] {clean_line}")   
+        response = robo_serial.send_gcodes([f"{clean_line}\r\n",])
+        print(f"<[R: Robo] {response}")
 
     elif cmd in MOVEMENT_COMMANDS:
         has_e = any(token.startswith('E') for token in tokens[1:])
@@ -164,18 +165,29 @@ def route_command(line, z_offset):
                 printer_params.append(token)
 
         if has_e:
-            if robot_params:
-                send_command(f"{cmd} {' '.join(robot_params)}", "Robô")
             if printer_params:
-                send_command(f"{cmd} {' '.join(printer_params)}", "Impressora")
+                # send_command(f"{cmd} {' '.join(printer_params)}", "Impressora")
+                printer_3d.send_gcode(f"{cmd} {' '.join(printer_params)}")
+            if robot_params:
+                # send_command(f"{cmd} {' '.join(robot_params)}", "Robô")
+                print(f">[Robo] {clean_line}")  
+                response = robo_serial.send_gcodes([f"{cmd} {' '.join(robot_params)}\r\n",])   
+                print(f"<[R: Robo] {response}")       
         else:
-            send_command(f"{cmd} {' '.join(robot_params)}", "Robô")
+            # send_command(f"{cmd} {' '.join(robot_params)}", "Robô")
+            print(f">[Robo] {clean_line}")  
+            response = robo_serial.send_gcodes([f"{cmd} {' '.join(robot_params)}\r\n",])
+            print(f"<[R: Robo] {response}")
 
     elif cmd in ROBOT_ONLY_COMMANDS:
-        send_command(clean_line, "Robô")
+        # send_command(clean_line, "Robô")
+        print(f">[Robo] {clean_line}")  
+        response = robo_serial.send_gcodes([f"{clean_line}\r\n",])
+        print(f"<[R: Robo] {response}")
 
     else:
-        send_command(clean_line, "Impressora")
+        # send_command(clean_line, "Impressora")
+        printer_3d.send_gcode(clean_line)
 
 @app.route("/")
 def index():
@@ -274,9 +286,11 @@ def desenhar():
             if clean_line and not clean_line.startswith(';'):
                 route_command(clean_line, float(height))
 
+        end_time = time.time() - printer_3d.start_time
         print("\n✅ Envio do G-code concluído com sucesso!")
-        response = 'Ok'
-
+        print(f"Duração da impressão: {end_time} s")
+        response = f"\n✅ Envio do G-code concluído com sucesso!\nDuração da impressão: {end_time} s"
+        
     except serial.SerialException as e:
         print(f"Erro na comunicação serial: {e}")
         response = "Erro na comunicação serial"

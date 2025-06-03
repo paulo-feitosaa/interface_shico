@@ -2,9 +2,9 @@ import serial
 import time
 
 # Configurações
-SERIAL_PORT = 'COM3'        # Altere para sua porta serial
+SERIAL_PORT = 'COM4'        # Altere para sua porta serial
 BAUDRATE = 115200
-GCODE_FILE = 'CE3E3V2_cube2mZ1.gcode'
+GCODE_FILE = 'g_codes\CE3E3V2_cube2mZ1Velocidade.gcode'
 
 def wait_for_ok(ser):
     """Aguarda uma linha que contenha 'ok' (pode estar junto de dados, como em M105)."""
@@ -34,8 +34,12 @@ def send_gcode(port, baudrate, gcode_path):
                         ser.write((clean_line + '\n').encode('utf-8'))
                         print(f"> {clean_line}")
                         wait_for_ok(ser)
+                        if clean_line == "M109 S200":
+                            start_time = time.time()
 
+            end_time = time.time() - start_time
             print("\n✅ Envio do G-code concluído com sucesso!")
+            print(f"Duração da impressão: {end_time} s")
 
     except serial.SerialException as e:
         print(f"Erro na comunicação serial: {e}")

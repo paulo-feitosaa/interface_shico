@@ -28,16 +28,17 @@ class RoboSerial:
         self.homed = False
         self.current_position = []
 
-    def send_gcodes(self, gcodes):
+    def send_gcodes(self, gcodes, timeout=2):
         for gcode in gcodes:
             try:
                 self.serial.write(gcode.encode())
-                while True:
+                start_time = time.time()
+                while time.time() - start_time < timeout:
                     if self.serial.in_waiting > 0:
                         line = self.serial.readline().decode('utf-8').rstrip()
                         return line
             except serial.SerialTimeoutException:
-                print("Timeout: Não foi possível escrever na serial no tempo definido.")
+                # print("Timeout: Não foi possível escrever na serial no tempo definido.")
                 return None
             
     def get_position(self, timeout=2):
@@ -93,20 +94,27 @@ def inicializar_conexao():
     global robo_serial
     global printer_3d
     print('Conectando...')
-    try:
-        printer_3d.serial = serial.Serial('COM4', printer_3d.baudrate, timeout=1)
-        time.sleep(0.1)
-        printer_3d.serial.reset_input_buffer()
-        printer_3d.serial.reset_output_buffer()
-
-        robo_serial.serial = serial.Serial('COM9', 115200, timeout=1, write_timeout=1)
-        time.sleep(0.1)
-        robo_serial.serial.reset_input_buffer()
-        robo_serial.serial.reset_output_buffer()
-        print("Robô conectado na COM9")
-        return True
-    except (serial.SerialException, OSError):
+    if printer_3d.connect():
+        ports = list(serial.tools.list_ports.comports())
+        for port in ports:
+            try:
+                robo_serial.serial = serial.Serial(port.device, 115200, timeout=1, write_timeout=1)
+                time.sleep(0.1)
+                robo_serial.serial.reset_input_buffer()
+                robo_serial.serial.reset_output_buffer()
+                response = robo_serial.send_gcodes(['IsDelta\r\n'])          
+                if response == 'YesDelta':
+                    print(f'Device found on {port.device}')
+                    return True
+                robo_serial.serial.close()
+                robo_serial.serial = None
+            except (serial.SerialException, OSError):
+                continue
         return False
+    else:
+        return False
+        
+    
     
 
 def send_command(line, origem):
@@ -314,7 +322,7 @@ if __name__ == "__main__":
         if inicializar_conexao():
             app.run(host="0.0.0.0", port=5000, debug=True)
         else:
-            print("Erro ao conectar com o robô.")
+            print("Erro ao conectar com o robô ou impressora")
     else:
         # Processo inicial — não conecta ainda
         app.run(host="0.0.0.0", port=5000, debug=True)

@@ -1,4 +1,5 @@
 import serial
+import serial.tools.list_ports
 import time
 
 
@@ -8,6 +9,27 @@ class Printer3d:
         self.baudrate = baudrate
         self.serial = None
         self.start_time = None
+
+    def connect(self, timeout=3):
+        ports = list(serial.tools.list_ports.comports())
+        list_str = ['start', 'Marlin']
+        for port in ports:
+            try:
+                self.serial = serial.Serial(port.device, 115200, timeout=1, write_timeout=1)
+                time.sleep(0.1)
+                start_time = time.time()
+                while time.time() - start_time < timeout:
+                    if self.serial.in_waiting > 0:
+                        response = self.serial.readline().decode('utf-8', errors='ignore').strip()
+                        print(response)
+                        if any(string in response for string in list_str):
+                            print(f'Printer found on {port.device}')
+                            return True
+                self.serial.close()
+                self.serial = None
+            except (serial.SerialException, OSError):
+                continue
+        return False
 
     def wait_for_ok(self):
         """Aguarda uma linha que contenha 'ok' (pode estar junto de dados, como em M105)."""

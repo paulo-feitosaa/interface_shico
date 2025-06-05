@@ -28,7 +28,7 @@ class RoboSerial:
         self.homed = False
         self.current_position = []
 
-    def send_gcodes(self, gcodes, timeout=2):
+    def send_gcodes(self, gcodes, timeout=3):
         for gcode in gcodes:
             try:
                 self.serial.write(gcode.encode())
@@ -178,13 +178,15 @@ def route_command(line, z_offset):
                 printer_3d.send_gcode(f"{cmd} {' '.join(printer_params)}")
             if robot_params:
                 # send_command(f"{cmd} {' '.join(robot_params)}", "Robô")
-                print(f">[Robo] {clean_line}")  
-                response = robo_serial.send_gcodes([f"{cmd} {' '.join(robot_params)}\r\n",])   
+                command = f"{cmd} {' '.join(robot_params)}\r\n"
+                print(f">[Robo] {command}")  
+                response = robo_serial.send_gcodes([command,])   
                 print(f"<[R: Robo] {response}")       
         else:
             # send_command(f"{cmd} {' '.join(robot_params)}", "Robô")
-            print(f">[Robo] {clean_line}")  
-            response = robo_serial.send_gcodes([f"{cmd} {' '.join(robot_params)}\r\n",])
+            command = f"{cmd} {' '.join(robot_params)}\r\n"
+            print(f">[Robo] {command}")  
+            response = robo_serial.send_gcodes([command,])
             print(f"<[R: Robo] {response}")
 
     elif cmd in ROBOT_ONLY_COMMANDS:
@@ -208,13 +210,13 @@ def comando():
     cmd = request.json.get("cmd")
     try:
         if robo_serial.serial:
+            print(f"Comando: {cmd}")
             if "Home" in cmd:
-                response = robo_serial.send_gcodes(['G28\r\n',])
+                response = robo_serial.send_gcodes(['G28\r\n',], timeout=6)
                 if response == 'Ok':
                     robo_serial.homed = True
                     robo_serial.current_position = robo_serial.get_position()
-            if robo_serial.homed: 
-                print(f"Comando: {cmd}")
+            elif robo_serial.homed:               
                 if "X-" in cmd:
                     response = robo_serial.move_step(axis=0, direction=-1)
                 if "X+" in cmd:

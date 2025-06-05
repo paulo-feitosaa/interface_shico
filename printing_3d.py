@@ -4,7 +4,7 @@ import time
 # Configurações
 SERIAL_PORT = 'COM4'        # Altere para sua porta serial
 BAUDRATE = 115200
-GCODE_FILE = 'g_codes\CE3E3V2_cube2mZ1Velocidade.gcode'
+GCODE_FILE = 'g_codes\CE3E3V2_cube2m_Z20V10.gcode'
 
 def wait_for_ok(ser):
     """Aguarda uma linha que contenha 'ok' (pode estar junto de dados, como em M105)."""
@@ -25,7 +25,7 @@ def send_gcode(port, baudrate, gcode_path):
             # Espera pela primeira resposta da impressora (ex: "start" ou "echo:..."), até o primeiro "ok"
             # wait_for_ok(ser)
 
-            print("Conectado. Iniciando envio do G-code...\n")
+            print(f"Conectado. Iniciando envio do G-code {gcode_path}...\n")
 
             with open(gcode_path, 'r') as file:
                 for line in file:
@@ -40,13 +40,16 @@ def send_gcode(port, baudrate, gcode_path):
             end_time = time.time() - start_time
             print("\n✅ Envio do G-code concluído com sucesso!")
             print(f"Duração da impressão: {end_time} s")
-
+            ser.close()
+            
     except serial.SerialException as e:
-        print(f"Erro na comunicação serial: {e}")
+        print(f"Erro na comunicação serial: {e}")     
     except FileNotFoundError:
         print("Arquivo G-code não encontrado.")
     except Exception as e:
         print(f"Erro inesperado: {e}")
+    except KeyboardInterrupt:
+        ser.close()
 
 if __name__ == "__main__":
     send_gcode(SERIAL_PORT, BAUDRATE, GCODE_FILE)
